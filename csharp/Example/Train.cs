@@ -1,14 +1,30 @@
+using System.Collections.Generic;
+using System.Linq;
+
 namespace Example
 {
     public class Train
     {
-        public int TotalSeats { get; set; }
-        public int Booked { get; set; }
+        private readonly List<Coach> coaches;
 
-        public Train(int totalSeats, int booked)
+        public IEnumerable<Coach> Coaches
         {
-            TotalSeats = totalSeats;
-            Booked = booked;
+            get { return coaches; }
+        }
+
+        public int TotalSeats
+        {
+            get { return coaches.Sum(c => c.TotalSeats); }
+        }
+
+        public int Booked
+        {
+            get { return coaches.Sum(c => c.Booked); }
+        }
+
+        public Train(List<Coach> coaches)
+        {
+            this.coaches = coaches;
         }
     }
 }

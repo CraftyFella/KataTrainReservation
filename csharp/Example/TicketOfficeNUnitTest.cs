@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Example.AcceptanceTests;
 using FluentAssertions;
 using NUnit.Framework;
@@ -12,7 +13,9 @@ namespace Example
         [Test]
         public void Test_MakeReservation_Returns_Valid_Reservation_When_Train_Has_Capacity()
         {
-            var trainProvider = new TrainProviderBuilder().WithCapacity(100).WithBooked(50).build();
+            var trainProvider = new TrainProviderBuilder()
+                .WithCoach(new CoachBuilder().WithCapacity(100).WithBooked(50).Build()).Build();
+
             var ticketOffice = new TicketOffice(trainProvider);
             var request = new ReservationRequest("express_2000", 1);
 
@@ -23,9 +26,10 @@ namespace Example
         }
 
         [Test]
-        public void Test_MakeReservation_Return_Empty_Reservation_When_Train_Is_Over_Capacity()
+        public void Test_MakeReservation_Return_Empty_When_Train_Is_Over_Capacity()
         {
-            var trainProvider = new TrainProviderBuilder().WithCapacity(100).WithBooked(70).build();
+            var trainProvider = new TrainProviderBuilder()
+                .WithCoach(new CoachBuilder().WithCapacity(100).WithBooked(70).Build()).Build();
             var ticketOffice = new TicketOffice(trainProvider);
             var result = ticketOffice.MakeReservation(new ReservationRequestBuilder().WithTrainId("express_2000").WithSeatCount(1).Build());
 
@@ -33,12 +37,26 @@ namespace Example
         }
 
         [Test]
-        public void Test_MakeReservation_Return_Empty_Reservation_When_Train_Will_Be_Over_Capacity()
+        public void Test_MakeReservation_Return_Empty_When_Train_Will_Be_Over_Capacity()
         {
-            var trainProvider = new TrainProviderBuilder().WithCapacity(100).WithBooked(65).build();
+            var trainProvider = new TrainProviderBuilder()
+                .WithCoach(new CoachBuilder().WithCapacity(100).WithBooked(65).Build()).Build();
             var ticketOffice = new TicketOffice(trainProvider);
             var result = ticketOffice.MakeReservation(new ReservationRequestBuilder().WithTrainId("express_2000").WithSeatCount(7).Build());
 
+            IsEmpty(result);
+        }
+
+        [Test]
+        public void Test_MakeReservation_Return_Empty_When_Booking_Is_Larger_Than_Any_Of_The_Coaches_Capacity()
+        {
+            var trainProvider = new TrainProviderBuilder()
+                .WithCoach(new CoachBuilder().WithBooked(0).WithCapacity(10).Build())
+                .WithCoach(new CoachBuilder().WithBooked(0).WithCapacity(10).Build())
+                .Build();
+
+            var ticketOffice = new TicketOffice(trainProvider);
+            var result = ticketOffice.MakeReservation(new ReservationRequestBuilder().WithTrainId("express_2000").WithSeatCount(11).Build());
             IsEmpty(result);
         }
 
@@ -50,30 +68,62 @@ namespace Example
         }
     }
 
-    public class TrainProviderBuilder
+    public class CoachBuilder
     {
         private int capacity = 100;
         private int booked = 100;
 
-        public TrainProviderBuilder WithCapacity(int capacity)
+        public CoachBuilder WithCapacity(int capacity)
         {
             this.capacity = capacity;
             return this;
         }
 
-        public TrainProviderBuilder WithBooked(int booked)
+        public CoachBuilder WithBooked(int booked)
         {
             this.booked = booked;
             return this;
         }
 
-        public ITrainProvider build()
+        public Coach Build()
+        {
+            return new Coach(capacity, booked);
+        }
+    }
+
+    public class Coach
+    {
+        public int TotalSeats { get; private set; }
+        public int Booked { get; private set; }
+        public int Available
+        {
+            get { return TotalSeats - Booked; }
+        }
+
+        public Coach(int totalSeats, int booked)
+        {
+            TotalSeats = totalSeats;
+            Booked = booked;
+        }
+    }
+
+    public class TrainProviderBuilder
+    {
+        private List<Coach> coaches = new List<Coach>();
+        
+        public ITrainProvider Build()
         {
             var trainProvider = MockRepository.GenerateMock<ITrainProvider>();
 
-            trainProvider.Stub(x => x.GetTrain(Arg<string>.Is.Anything)).Return(new Train(capacity, booked));
+            trainProvider.Stub(x => x.GetTrain(Arg<string>.Is.Anything)).Return(new Train(coaches));
 
             return trainProvider;
+        }
+
+        public TrainProviderBuilder WithCoach(Coach coach)
+        {
+            this.coaches.Add(coach);
+            return this;
         }
     }
 
