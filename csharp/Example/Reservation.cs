@@ -14,5 +14,7 @@ namespace Example
             this.BookingId = bookingId;
             this.Seats = seats;
         }
+
+        public static readonly Reservation Empty = new Reservation(string.Empty, string.Empty, new List<Seat>());
     }
 }
